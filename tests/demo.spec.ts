@@ -165,6 +165,76 @@ test.describe('Playwright feature lab', () => {
     await expect(items).toHaveCount(0);
   });
 
+  test('btc tracker loads with mocked api data', async ({ page }) => {
+    await page.route('**/api/btc', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          price: 100250.5,
+          change24h: 3.12,
+          sparkline: [
+            95000, 96000, 97000, 96500, 98000, 99000, 98500, 99500, 100000, 100250,
+            99800, 100100, 100500, 99900, 100200, 100050, 100300, 100100, 100400, 100250,
+          ],
+        }),
+      });
+    });
+
+    const responsePromise = page.waitForResponse('**/api/btc');
+    await page.getByRole('button', { name: 'Load BTC data' }).click();
+    await responsePromise;
+
+    await expect(page.getByTestId('btc-status')).toHaveText(/success/i);
+    const panel = page.getByTestId('btc-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('100,250.50');
+    await expect(panel).toContainText('+3.12%');
+    await expect(panel.locator('svg[aria-label="Bitcoin price chart"]')).toBeVisible();
+  });
+
+  test('btc tracker falls back when api fails', async ({ page }) => {
+    await page.route('**/api/btc', async (route) => {
+      await route.fulfill({ status: 500, body: 'nope' });
+    });
+    await page.route('**/btc.json', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          price: 97432.18,
+          change24h: 2.34,
+          sparkline: [94200, 94800, 95100, 94600, 95400, 96100, 95800, 96500, 96200, 96800,
+            97100, 96700, 97300, 97000, 97500, 97200, 97800, 97100, 97600, 97432],
+        }),
+      });
+    });
+
+    await page.getByRole('button', { name: 'Load BTC data' }).click();
+
+    await expect(page.getByTestId('btc-status')).toHaveText(/fallback/i);
+    const panel = page.getByTestId('btc-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('97,432.18');
+    await expect(panel).toContainText('+2.34%');
+  });
+
+  test('btc tracker uses static data when both api and fallback fail', async ({ page }) => {
+    await page.route('**/api/btc', async (route) => {
+      await route.fulfill({ status: 500, body: 'nope' });
+    });
+    await page.route('**/btc.json', async (route) => {
+      await route.fulfill({ status: 500, body: 'nope' });
+    });
+
+    await page.getByRole('button', { name: 'Load BTC data' }).click();
+
+    await expect(page.getByTestId('btc-status')).toHaveText(/static/i);
+    const panel = page.getByTestId('btc-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('97,432.18');
+  });
+
   test('file upload preview', async ({ page }) => {
     const filePath = path.join(__dirname, 'fixtures', 'notes.txt');
     await page.getByLabel('Upload sample notes').setInputFiles(filePath);
