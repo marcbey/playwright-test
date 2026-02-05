@@ -67,7 +67,7 @@ export default function App() {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
-        timeZone: selectedCityConfig.tz,
+        timeZone: cities[0].tz,
       }).format(new Date())
     : '';
 
