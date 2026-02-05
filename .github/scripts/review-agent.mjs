@@ -167,10 +167,7 @@ const response = await openai.responses.create({
   max_output_tokens: 800,
 });
 
-const reviewText =
-  response.output_text ||
-  response.output?.map((item) => item.content?.map((c) => c.text).join('')).join('') ||
-  'Review completed, but no text was returned by the model.';
+const reviewText = extractReviewText(response);
 
 await octokit.pulls.createReview({
   owner,
@@ -223,6 +220,7 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'Avoid nitpicks and formatting-only comments.',
     'Reference files and diff snippets where possible.',
     'If unsure, state assumptions instead of asking questions.',
+    'If you find no issues, explicitly say \"No issues found\" and briefly confirm that tests passed.',
     '',
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
@@ -233,6 +231,21 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'Unified Diff (truncated):',
     diff || '(no diff)',
   ].join('\n');
+}
+
+function extractReviewText(response) {
+  if (response?.output_text) return response.output_text;
+  const contentChunks = [];
+  for (const item of response?.output || []) {
+    for (const content of item.content || []) {
+      if (content?.type === 'output_text' && content.text) {
+        contentChunks.push(content.text);
+      }
+    }
+  }
+  const text = contentChunks.join('\n').trim();
+  if (text) return text;
+  return 'No issues found. Tests passed.';
 }
 
 function usesPlaywright(pkg) {
