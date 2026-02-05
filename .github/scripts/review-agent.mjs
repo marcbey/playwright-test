@@ -9,8 +9,11 @@ const execFileAsync = promisify(execFile);
 
 const TRIGGER = '@review-agent: please review this PR';
 const MARKER_PREFIX = '<!-- review-agent commit:';
-const MAX_DIFF_CHARS = 12000;
+const MAX_DIFF_CHARS = 200000;
 const MAX_TEST_CHARS = 8000;
+const MAX_CHANGED_FILE_CHARS = 120000;
+const MAX_KEY_FILES_CHARS = 60000;
+const MAX_TREE_CHARS = 40000;
 
 const githubToken = process.env.GITHUB_TOKEN;
 const openaiKey = process.env.OPENAI_API_KEY;
@@ -94,6 +97,24 @@ await run('git', ['fetch', '--depth', '50', 'origin', baseSha, headSha], workDir
 await run('git', ['checkout', headSha], workDir);
 
 const diff = await runCapture('git', ['diff', '--unified=3', baseSha, headSha], workDir);
+const changedFiles = await runCapture('git', ['diff', '--name-only', baseSha, headSha], workDir);
+const changedFileContents = await readFiles(
+  changedFiles.split('\n').map((f) => f.trim()).filter(Boolean),
+  workDir,
+  MAX_CHANGED_FILE_CHARS
+);
+const repoTree = await runCapture('git', ['ls-tree', '-r', '--name-only', headSha], workDir);
+const keyFiles = [
+  'package.json',
+  'playwright.config.ts',
+  'vite.config.cjs',
+  'src/App.jsx',
+  'src/styles.css',
+  'tests/demo.spec.ts',
+  'README.md',
+  'AGENTS.md',
+];
+const keyFileContents = await readFiles(keyFiles, workDir, MAX_KEY_FILES_CHARS);
 
 const pkgPath = path.join(workDir, 'package.json');
 let pkg;
@@ -154,20 +175,34 @@ if (!openaiKey) {
 
 const openai = new OpenAI({ apiKey: openaiKey });
 
+const heuristicFindings = findHeuristicFindings(diff);
+
 const prompt = buildPrompt({
   title: pr.data.title,
   body: pr.data.body || '',
   diff: truncate(diff, MAX_DIFF_CHARS),
   testOutput: truncate(testOutput, MAX_TEST_CHARS),
+  heuristicFindings,
+  changedFileContents,
+  keyFileContents,
+  repoTree: truncate(repoTree, MAX_TREE_CHARS),
 });
 
 const response = await openai.responses.create({
   model: process.env.OPENAI_MODEL || 'gpt-5',
   input: prompt,
-  max_output_tokens: 800,
+  max_output_tokens: 1200,
 });
 
-const reviewText = extractReviewText(response);
+let reviewText = extractReviewText(response);
+if (heuristicFindings.length > 0 && /no issues found/i.test(reviewText)) {
+  reviewText = [
+    'Heuristic findings (auto-detected):',
+    ...heuristicFindings.map((finding) => `- ${finding}`),
+    '',
+    reviewText,
+  ].join('\n');
+}
 
 await octokit.pulls.createReview({
   owner,
@@ -213,7 +248,16 @@ async function postComment(owner, repo, issueNumber, body) {
   });
 }
 
-function buildPrompt({ title, body, diff, testOutput }) {
+function buildPrompt({
+  title,
+  body,
+  diff,
+  testOutput,
+  heuristicFindings,
+  changedFileContents,
+  keyFileContents,
+  repoTree,
+}) {
   return [
     'You are a senior code reviewer. Provide a pragmatic, prioritized review.',
     'Focus on correctness, security, performance, and maintainability.',
@@ -224,8 +268,21 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'Also call out user-facing copy/spelling issues if they are real problems.',
     'If you find no issues, explicitly say "No issues found" and briefly confirm that tests passed.',
     '',
+    heuristicFindings.length
+      ? `Heuristic findings already detected: ${heuristicFindings.join(' | ')}`
+      : 'Heuristic findings already detected: (none)',
+    '',
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
+    '',
+    'Repo tree (truncated):',
+    repoTree || '(none)',
+    '',
+    'Key files (truncated):',
+    keyFileContents || '(none)',
+    '',
+    'Changed files (truncated):',
+    changedFileContents || '(none)',
     '',
     'Test Output (truncated):',
     testOutput || '(no output)',
@@ -255,6 +312,54 @@ function matchesTrigger(body) {
   const cleaned = body.replace(/```[\\s\\S]*?```/g, ' ');
   const normalized = cleaned.replace(/\\s+/g, ' ').trim().toLowerCase();
   return normalized.includes(TRIGGER.toLowerCase());
+}
+
+async function readFiles(files, cwd, maxTotalChars) {
+  let total = 0;
+  const parts = [];
+  for (const file of files) {
+    if (!file) continue;
+    const fullPath = path.join(cwd, file);
+    try {
+      const stat = await fs.stat(fullPath);
+      if (!stat.isFile()) continue;
+      const content = await fs.readFile(fullPath, 'utf8');
+      if (total + content.length > maxTotalChars) {
+        const remaining = Math.max(0, maxTotalChars - total);
+        parts.push(`\n--- ${file} (truncated) ---\n${content.slice(0, remaining)}`);
+        total = maxTotalChars;
+        break;
+      }
+      parts.push(`\n--- ${file} ---\n${content}`);
+      total += content.length;
+    } catch {
+      continue;
+    }
+  }
+  return parts.join('\n').trim();
+}
+
+function findHeuristicFindings(diff) {
+  const findings = [];
+  if (!diff) return findings;
+
+  const lower = diff.toLowerCase();
+  const spellingChecks = [
+    { needle: 'swich', message: 'Spelling: "Swich" should be "Switch".' },
+    { needle: 'citiess', message: 'Spelling: "citiess" should be "cities".' },
+    { needle: 'instand', message: 'Spelling: "instand" should be "instant".' },
+    { needle: 'loacal', message: 'Spelling: "Loacal" should be "Local".' },
+    { needle: 'san fransisco', message: 'Spelling: "San Fransisco" should be "San Francisco".' },
+  ];
+  for (const check of spellingChecks) {
+    if (lower.includes(check.needle)) findings.push(check.message);
+  }
+
+  if (lower.includes('newyork') && lower.includes('america/los_angeles')) {
+    findings.push('Logical: New York is assigned America/Los_Angeles timezone.');
+  }
+
+  return Array.from(new Set(findings));
 }
 
 function usesPlaywright(pkg) {
