@@ -432,6 +432,48 @@ button.ghost {
   background: #fff1e6;
 }
 
+.world-clock {
+  display: grid;
+  gap: 16px;
+}
+
+.city-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.city-tabs button {
+  border: 1px solid var(--stroke);
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.city-tabs button.active {
+  background: var(--accent);
+  color: #fff7ee;
+  border-color: transparent;
+}
+
+.clock-panel {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fffaf4;
+  border: 1px solid var(--stroke);
+}
+
+.clock-time {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep);
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.9rem;
