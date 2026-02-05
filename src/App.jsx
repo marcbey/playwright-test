@@ -463,7 +463,7 @@ export default function App() {
         <section className="card" aria-labelledby="world-title">
           <div className="card-header">
             <h2 id="world-title">World clock</h2>
-            <p>Switch between key cities for instant local time.</p>
+            <p>Swich between key citiess for instant local time.</p>
           </div>
           <div className="world-clock">
             <div className="city-tabs" role="tablist" aria-label="World cities">

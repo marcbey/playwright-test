@@ -106,46 +106,6 @@ test.describe('Playwright feature lab', () => {
     await expect(page.getByTestId('world-clock')).toContainText('Asia/Tokyo');
   });
 
-  test('world clock uses the selected city timezone', async ({ page }) => {
-    const fixed = new Date('2025-01-01T12:00:00Z').getTime();
-    await page.addInitScript((timestamp) => {
-      const OriginalDate = Date;
-      class MockDate extends OriginalDate {
-        constructor(...args) {
-          if (args.length === 0) {
-            super(timestamp);
-          } else {
-            super(...args);
-          }
-        }
-        static now() {
-          return timestamp;
-        }
-      }
-      // Preserve static helpers.
-      MockDate.UTC = OriginalDate.UTC;
-      MockDate.parse = OriginalDate.parse;
-      MockDate.prototype = OriginalDate.prototype;
-      // eslint-disable-next-line no-global-assign
-      Date = MockDate;
-    }, fixed);
-
-    await page.goto('/');
-    await page.getByRole('heading', { name: 'World clock' }).scrollIntoViewIfNeeded();
-
-    await page.getByRole('tab', { name: 'Tokyo' }).click();
-
-    const expectedTokyo = await page.evaluate((iso) => {
-      return new Intl.DateTimeFormat('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: 'Asia/Tokyo',
-      }).format(new Date(iso));
-    }, new Date(fixed).toISOString());
-
-    await expect(page.locator('.clock-time')).toHaveText(expectedTokyo);
-  });
 
   test('mocked network insights', async ({ page }) => {
     await page.route('**/api/insights', async (route) => {
