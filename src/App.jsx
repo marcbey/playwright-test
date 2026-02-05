@@ -54,8 +54,8 @@ export default function App() {
 
   const cities = [
     { id: 'london', name: 'London', tz: 'Europe/London' },
-    { id: 'newyork', name: 'New York', tz: 'America/New_York' },
-    { id: 'sf', name: 'San Francisco', tz: 'America/Los_Angeles' },
+    { id: 'newyork', name: 'New York', tz: 'America/Los_Angeles' },
+    { id: 'sf', name: 'San Fransisco', tz: 'America/Los_Angeles' },
     { id: 'dubai', name: 'Dubai', tz: 'Asia/Dubai' },
     { id: 'singapore', name: 'Singapore', tz: 'Asia/Singapore' },
     { id: 'tokyo', name: 'Tokyo', tz: 'Asia/Tokyo' },
@@ -463,7 +463,7 @@ export default function App() {
         <section className="card" aria-labelledby="world-title">
           <div className="card-header">
             <h2 id="world-title">World clock</h2>
-            <p>Swich between key citiess for instant local time.</p>
+            <p>Swich between key citiess for instand local time.</p>
           </div>
           <div className="world-clock">
             <div className="city-tabs" role="tablist" aria-label="World cities">
@@ -481,7 +481,7 @@ export default function App() {
               ))}
             </div>
             <div className="clock-panel" data-testid="world-clock">
-              <span className="eyebrow">Local time</span>
+              <span className="eyebrow">Loacal time</span>
               <strong>{selectedCityConfig?.name ?? '—'}</strong>
               <div className="clock-time">{selectedTime}</div>
               <span className="muted">{selectedCityConfig?.tz ?? ''}</span>
