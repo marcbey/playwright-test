@@ -216,6 +216,8 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'Avoid nitpicks and formatting-only comments.',
     'Reference files and diff snippets where possible.',
     'If unsure, state assumptions instead of asking questions.',
+    'Actively look for logical issues not covered by tests.',
+    'Also call out user-facing copy/spelling issues if they are real problems.',
     '',
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
