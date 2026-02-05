@@ -1,6 +1,63 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const USER_KEY = 'pw-demo-user';
+
+const FALLBACK_BTC_DATA = {
+  price: 97432.18,
+  change24h: 2.34,
+  sparkline: [
+    94200, 94800, 95100, 94600, 95400, 96100, 95800, 96500, 96200, 96800,
+    97100, 96700, 97300, 97000, 97500, 97200, 97800, 97100, 97600, 97432,
+  ],
+};
+
+function BtcChart({ data }) {
+  const svgRef = useRef(null);
+  const points = data?.sparkline ?? [];
+  if (points.length < 2) return null;
+
+  const width = 480;
+  const height = 180;
+  const padX = 32;
+  const padY = 24;
+
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+
+  const coords = points.map((val, i) => ({
+    x: padX + (i / (points.length - 1)) * (width - padX * 2),
+    y: padY + (1 - (val - min) / range) * (height - padY * 2),
+  }));
+
+  const line = coords.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const area = `${line} L${coords[coords.length - 1].x},${height - padY} L${coords[0].x},${height - padY} Z`;
+
+  const isPositive = (data?.change24h ?? 0) >= 0;
+  const strokeColor = isPositive ? '#16a34a' : '#dc2626';
+  const fillColor = isPositive ? 'rgba(22,163,74,0.10)' : 'rgba(220,38,38,0.10)';
+
+  return (
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${width} ${height}`}
+      className="btc-chart-svg"
+      role="img"
+      aria-label="Bitcoin price chart"
+    >
+      <defs>
+        <linearGradient id="btcGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#btcGrad)" />
+      <path d={line} fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="4" fill={strokeColor} />
+    </svg>
+  );
+}
+
 const DEFAULT_TASKS = [
   { id: 't1', label: 'Draft launch copy', done: false },
   { id: 't2', label: 'QA onboarding flow', done: true },
@@ -53,6 +110,31 @@ export default function App() {
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('09:30');
   const [selectedCity, setSelectedCity] = useState('london');
+  const [btcData, setBtcData] = useState(null);
+  const [btcStatus, setBtcStatus] = useState('idle');
+
+  const loadBtcData = useCallback(async () => {
+    setBtcStatus('loading');
+    setBtcData(null);
+    try {
+      const res = await fetch('/api/btc');
+      if (!res.ok) throw new Error('API failed');
+      const data = await res.json();
+      setBtcData(data);
+      setBtcStatus('success');
+    } catch {
+      try {
+        const fallback = await fetch('/btc.json');
+        if (!fallback.ok) throw new Error('Fallback failed');
+        const data = await fallback.json();
+        setBtcData(data);
+        setBtcStatus('fallback');
+      } catch {
+        setBtcData(FALLBACK_BTC_DATA);
+        setBtcStatus('static');
+      }
+    }
+  }, []);
 
   const cities = [
     { id: 'london', name: 'London', tz: 'Europe/London' },
@@ -398,6 +480,40 @@ export default function App() {
               </article>
             ))}
           </div>
+        </section>
+
+        <section className="card" aria-labelledby="btc-title">
+          <div className="card-header">
+            <h2 id="btc-title">BTC tracker</h2>
+            <p>Live Bitcoin price chart with network fetch and fallback.</p>
+          </div>
+          <button className="primary" type="button" onClick={loadBtcData}>
+            Load BTC data
+          </button>
+          <div className="status" data-testid="btc-status">
+            Status: {btcStatus}
+          </div>
+          {btcData ? (
+            <div className="btc-panel" data-testid="btc-panel">
+              <div className="btc-header">
+                <div className="btc-price">
+                  <span className="eyebrow">Bitcoin (BTC)</span>
+                  <strong>${btcData.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                </div>
+                <span className={`btc-change ${btcData.change24h >= 0 ? 'positive' : 'negative'}`}>
+                  {btcData.change24h >= 0 ? '+' : ''}{btcData.change24h.toFixed(2)}%
+                </span>
+              </div>
+              <BtcChart data={btcData} />
+              <div className="btc-footer">
+                <span className="muted">Sparkline — last 20 data points</span>
+              </div>
+            </div>
+          ) : btcStatus === 'loading' ? (
+            <p className="muted">Fetching latest BTC data...</p>
+          ) : (
+            <p className="muted">Press the button to fetch the latest Bitcoin price.</p>
+          )}
         </section>
 
         <section className="card" aria-labelledby="files-title">

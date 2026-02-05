@@ -504,6 +504,63 @@ button.ghost {
   font-size: 0.9rem;
 }
 
+.btc-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: #fffaf4;
+}
+
+.btc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btc-price {
+  display: grid;
+  gap: 4px;
+}
+
+.btc-price strong {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.btc-change {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.btc-change.positive {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.btc-change.negative {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+.btc-chart-svg {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.btc-footer {
+  text-align: center;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
