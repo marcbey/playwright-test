@@ -50,6 +50,8 @@ export default function App() {
   const [region, setRegion] = useState('north');
   const [accentColor, setAccentColor] = useState('#f2673a');
   const [copyStatus, setCopyStatus] = useState('idle');
+  const [meetingDate, setMeetingDate] = useState('');
+  const [meetingTime, setMeetingTime] = useState('09:30');
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -436,6 +438,37 @@ export default function App() {
                   {copyStatus === 'copied' ? '✓' : '⧉'}
                 </button>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="card" aria-labelledby="schedule-title">
+          <div className="card-header">
+            <h2 id="schedule-title">Launch schedule</h2>
+            <p>Date + time picker with a styled preview.</p>
+          </div>
+          <div className="datetime-panel">
+            <label className="field">
+              Date
+              <input
+                type="date"
+                value={meetingDate}
+                onChange={(event) => setMeetingDate(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              Time
+              <input
+                type="time"
+                value={meetingTime}
+                onChange={(event) => setMeetingTime(event.target.value)}
+              />
+            </label>
+            <div className="datetime-preview" aria-live="polite">
+              <span className="eyebrow">Planned window</span>
+              <strong>
+                {meetingDate ? meetingDate : 'Pick a date'} · {meetingTime}
+              </strong>
             </div>
           </div>
         </section>
