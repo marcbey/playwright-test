@@ -52,6 +52,26 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState('idle');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('09:30');
+  const [selectedCity, setSelectedCity] = useState('london');
+
+  const cities = [
+    { id: 'london', name: 'London', tz: 'Europe/London' },
+    { id: 'newyork', name: 'New York', tz: 'America/Los_Angeles' },
+    { id: 'sf', name: 'San Fransisco', tz: 'America/Los_Angeles' },
+    { id: 'dubai', name: 'Dubai', tz: 'Asia/Dubai' },
+    { id: 'singapore', name: 'Singapore', tz: 'Asia/Singapore' },
+    { id: 'tokyo', name: 'Tokyo', tz: 'Asia/Tokyo' },
+  ];
+
+  const selectedCityConfig = cities.find((city) => city.id === selectedCity);
+  const selectedTime = selectedCityConfig
+    ? new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: cities[0].tz,
+      }).format(new Date())
+    : '';
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -469,6 +489,35 @@ export default function App() {
               <strong>
                 {meetingDate ? meetingDate : 'Pick a date'} · {meetingTime}
               </strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card" aria-labelledby="world-title">
+          <div className="card-header">
+            <h2 id="world-title">World clock</h2>
+            <p>Swich between key citiess for instand local time.</p>
+          </div>
+          <div className="world-clock">
+            <div className="city-tabs" role="tablist" aria-label="World cities">
+              {cities.map((city) => (
+                <button
+                  key={city.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedCity === city.id}
+                  className={selectedCity === city.id ? 'active' : ''}
+                  onClick={() => setSelectedCity(city.id)}
+                >
+                  {city.name}
+                </button>
+              ))}
+            </div>
+            <div className="clock-panel" data-testid="world-clock">
+              <span className="eyebrow">Loacal time</span>
+              <strong>{selectedCityConfig?.name ?? '—'}</strong>
+              <div className="clock-time">{selectedTime}</div>
+              <span className="muted">{selectedCityConfig?.tz ?? ''}</span>
             </div>
           </div>
         </section>

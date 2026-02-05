@@ -97,6 +97,16 @@ test.describe('Playwright feature lab', () => {
     expect(text).toBe('#F2673A');
   });
 
+  test('world clock switches cities', async ({ page }) => {
+    await page.getByRole('heading', { name: 'World clock' }).scrollIntoViewIfNeeded();
+    await expect(page.getByTestId('world-clock')).toContainText('London');
+
+    await page.getByRole('tab', { name: 'Tokyo' }).click();
+    await expect(page.getByTestId('world-clock')).toContainText('Tokyo');
+    await expect(page.getByTestId('world-clock')).toContainText('Asia/Tokyo');
+  });
+
+
   test('mocked network insights', async ({ page }) => {
     await page.route('**/api/insights', async (route) => {
       await route.fulfill({
