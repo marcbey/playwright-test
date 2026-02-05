@@ -71,6 +71,43 @@ test.describe('Playwright feature lab', () => {
     await expect(page.getByText('Mocked win rate')).toBeVisible();
   });
 
+  test('insights fallback when api fails', async ({ page }) => {
+    await page.route('**/api/insights', async (route) => {
+      await route.fulfill({ status: 500, body: 'nope' });
+    });
+    await page.route('**/insights.json', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 'f1', title: 'Fallback ready', detail: 'Loaded from static JSON.' },
+        ]),
+      });
+    });
+
+    await page.getByRole('button', { name: 'Load insights' }).click();
+
+    await expect(page.getByTestId('insights-status')).toHaveText(/fallback/i);
+    const items = page.getByRole('list', { name: 'Insights list' }).getByRole('listitem');
+    await expect(items).toHaveCount(1);
+    await expect(page.getByText('Fallback ready')).toBeVisible();
+  });
+
+  test('insights error when api and fallback fail', async ({ page }) => {
+    await page.route('**/api/insights', async (route) => {
+      await route.fulfill({ status: 500, body: 'nope' });
+    });
+    await page.route('**/insights.json', async (route) => {
+      await route.fulfill({ status: 500, body: 'nope' });
+    });
+
+    await page.getByRole('button', { name: 'Load insights' }).click();
+
+    await expect(page.getByTestId('insights-status')).toHaveText(/error/i);
+    const items = page.getByRole('list', { name: 'Insights list' }).getByRole('listitem');
+    await expect(items).toHaveCount(0);
+  });
+
   test('file upload preview', async ({ page }) => {
     const filePath = path.join(__dirname, 'fixtures', 'notes.txt');
     await page.getByLabel('Upload sample notes').setInputFiles(filePath);

@@ -123,6 +123,7 @@ export default function App() {
 
   const loadInsights = async () => {
     setInsightsStatus('loading');
+    setInsights([]);
     try {
       const response = await fetch('/api/insights');
       if (!response.ok) throw new Error('Request failed');
@@ -130,10 +131,15 @@ export default function App() {
       setInsights(data);
       setInsightsStatus('success');
     } catch {
-      const fallback = await fetch('/insights.json');
-      const data = await fallback.json();
-      setInsights(data);
-      setInsightsStatus('fallback');
+      try {
+        const fallback = await fetch('/insights.json');
+        if (!fallback.ok) throw new Error('Fallback failed');
+        const data = await fallback.json();
+        setInsights(data);
+        setInsightsStatus('fallback');
+      } catch {
+        setInsightsStatus('error');
+      }
     }
   };
 
