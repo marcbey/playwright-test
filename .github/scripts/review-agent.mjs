@@ -9,11 +9,6 @@ const execFileAsync = promisify(execFile);
 
 const TRIGGER = '@review-agent: please review this PR';
 const MARKER_PREFIX = '<!-- review-agent commit:';
-const MAX_DIFF_CHARS = 200000;
-const MAX_TEST_CHARS = 8000;
-const MAX_CHANGED_FILE_CHARS = 120000;
-const MAX_KEY_FILES_CHARS = 60000;
-const MAX_TREE_CHARS = 40000;
 
 const githubToken = process.env.GITHUB_TOKEN;
 const openaiKey = process.env.OPENAI_API_KEY;
@@ -68,22 +63,6 @@ const headSha = pr.data.head.sha;
 const baseSha = pr.data.base.sha;
 const marker = `${MARKER_PREFIX}${headSha} -->`;
 
-const existingReviews = await octokit.pulls.listReviews({
-  owner,
-  repo,
-  pull_number: issueNumber,
-  per_page: 100,
-});
-
-const alreadyReviewed = existingReviews.data.some((review) =>
-  review.body?.includes(marker)
-);
-
-if (alreadyReviewed) {
-  console.log('Review already exists for this commit. Exiting.');
-  process.exit(0);
-}
-
 const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
 const workDir = path.join(workspace, '.review-agent-work');
 await fs.rm(workDir, { recursive: true, force: true });
@@ -100,8 +79,7 @@ const diff = await runCapture('git', ['diff', '--unified=3', baseSha, headSha], 
 const changedFiles = await runCapture('git', ['diff', '--name-only', baseSha, headSha], workDir);
 const changedFileContents = await readFiles(
   changedFiles.split('\n').map((f) => f.trim()).filter(Boolean),
-  workDir,
-  MAX_CHANGED_FILE_CHARS
+  workDir
 );
 const repoTree = await runCapture('git', ['ls-tree', '-r', '--name-only', headSha], workDir);
 const keyFiles = [
@@ -114,7 +92,7 @@ const keyFiles = [
   'README.md',
   'AGENTS.md',
 ];
-const keyFileContents = await readFiles(keyFiles, workDir, MAX_KEY_FILES_CHARS);
+const keyFileContents = await readFiles(keyFiles, workDir);
 
 const pkgPath = path.join(workDir, 'package.json');
 let pkg;
@@ -178,11 +156,11 @@ const openai = new OpenAI({ apiKey: openaiKey });
 const prompt = buildPrompt({
   title: pr.data.title,
   body: pr.data.body || '',
-  diff: truncate(diff, MAX_DIFF_CHARS),
-  testOutput: truncate(testOutput, MAX_TEST_CHARS),
+  diff,
+  testOutput,
   changedFileContents,
   keyFileContents,
-  repoTree: truncate(repoTree, MAX_TREE_CHARS),
+  repoTree,
 });
 
 const response = await openai.responses.create({
@@ -222,11 +200,6 @@ async function runCapture(cmd, args, cwd) {
   }
 }
 
-function truncate(text, maxChars) {
-  if (!text) return '';
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, maxChars)}\n...truncated...`;
-}
 
 async function postComment(owner, repo, issueNumber, body) {
   await octokit.issues.createComment({
@@ -298,8 +271,7 @@ function matchesTrigger(body) {
   return normalized.includes(TRIGGER.toLowerCase());
 }
 
-async function readFiles(files, cwd, maxTotalChars) {
-  let total = 0;
+async function readFiles(files, cwd) {
   const parts = [];
   for (const file of files) {
     if (!file) continue;
@@ -308,14 +280,7 @@ async function readFiles(files, cwd, maxTotalChars) {
       const stat = await fs.stat(fullPath);
       if (!stat.isFile()) continue;
       const content = await fs.readFile(fullPath, 'utf8');
-      if (total + content.length > maxTotalChars) {
-        const remaining = Math.max(0, maxTotalChars - total);
-        parts.push(`\n--- ${file} (truncated) ---\n${content.slice(0, remaining)}`);
-        total = maxTotalChars;
-        break;
-      }
       parts.push(`\n--- ${file} ---\n${content}`);
-      total += content.length;
     } catch {
       continue;
     }
