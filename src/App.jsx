@@ -365,10 +365,21 @@ export default function App() {
             <h2 id="files-title">File intake</h2>
             <p>File uploads, previews, and assertions.</p>
           </div>
-          <label className="field">
-            Upload sample notes
-            <input type="file" onChange={handleFile} />
-          </label>
+          <div className="field">
+            <span>Upload sample notes</span>
+            <label className="file-picker" htmlFor="file-upload-input">
+              <input
+                id="file-upload-input"
+                type="file"
+                aria-label="Upload sample notes"
+                onChange={handleFile}
+              />
+              <span className="file-button">Choose file</span>
+              <span className="file-name">
+                {filePreview?.name ?? 'No file selected'}
+              </span>
+            </label>
+          </div>
           {filePreview ? (
             <div className="file-preview" data-testid="file-preview">
               <strong>{filePreview.name}</strong>

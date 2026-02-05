@@ -325,6 +325,46 @@ button.ghost {
   background: #fffdf9;
 }
 
+.file-picker {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  background: #fffaf4;
+}
+
+.file-picker input[type='file'] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff7ee;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.file-name {
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.9rem;
