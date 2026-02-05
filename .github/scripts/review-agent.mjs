@@ -123,6 +123,13 @@ if (!testScript || /no test specified/i.test(testScript)) {
 let testOutput = '';
 try {
   testOutput += await runCapture('npm', ['ci'], workDir);
+  if (usesPlaywright(pkg)) {
+    testOutput += await runCapture(
+      'npx',
+      ['playwright', 'install', '--with-deps', 'chromium'],
+      workDir
+    );
+  }
   testOutput += await runCapture('npm', ['test'], workDir);
 } catch (error) {
   const output = truncate(error.output || testOutput || String(error), MAX_TEST_CHARS);
@@ -226,4 +233,13 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'Unified Diff (truncated):',
     diff || '(no diff)',
   ].join('\n');
+}
+
+function usesPlaywright(pkg) {
+  const deps = {
+    ...pkg?.dependencies,
+    ...pkg?.devDependencies,
+    ...pkg?.optionalDependencies,
+  };
+  return Boolean(deps && (deps['@playwright/test'] || deps.playwright));
 }
