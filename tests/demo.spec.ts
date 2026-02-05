@@ -87,6 +87,16 @@ test.describe('Playwright feature lab', () => {
     );
   });
 
+  test('color picker copies hex to clipboard', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.getByRole('heading', { name: 'Color mixer' }).scrollIntoViewIfNeeded();
+
+    await page.getByRole('button', { name: 'Copy color' }).click();
+
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    expect(text).toBe('#F2673A');
+  });
+
   test('mocked network insights', async ({ page }) => {
     await page.route('**/api/insights', async (route) => {
       await route.fulfill({

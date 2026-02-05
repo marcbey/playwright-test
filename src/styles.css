@@ -365,6 +365,73 @@ button.ghost {
   white-space: nowrap;
 }
 
+.color-picker {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  background: #fffaf4;
+}
+
+.swatch {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: var(--swatch);
+  border: 2px solid #fff;
+  box-shadow: 0 10px 20px var(--shadow);
+}
+
+.color-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.color-controls input[type='color'] {
+  width: 100%;
+  height: 44px;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.color-value {
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.color-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--accent-deep);
+}
+
+.icon-button:hover {
+  background: #fff1e6;
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.9rem;

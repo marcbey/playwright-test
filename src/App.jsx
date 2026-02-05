@@ -48,6 +48,8 @@ export default function App() {
   const [filePreview, setFilePreview] = useState(null);
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('north');
+  const [accentColor, setAccentColor] = useState('#f2673a');
+  const [copyStatus, setCopyStatus] = useState('idle');
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -154,6 +156,22 @@ export default function App() {
       size: file.size,
       snippet: text.slice(0, 120),
     });
+  };
+
+  const copyColor = async () => {
+    try {
+      await navigator.clipboard.writeText(accentColor.toUpperCase());
+      setCopyStatus('copied');
+    } catch {
+      const input = document.createElement('input');
+      input.value = accentColor.toUpperCase();
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopyStatus('copied');
+    }
+    window.setTimeout(() => setCopyStatus('idle'), 1500);
   };
 
   return (
@@ -389,6 +407,37 @@ export default function App() {
           ) : (
             <p className="muted">Attach any text file to preview its contents.</p>
           )}
+        </section>
+
+        <section className="card" aria-labelledby="color-title">
+          <div className="card-header">
+            <h2 id="color-title">Color mixer</h2>
+            <p>Color picker input with live preview and value display.</p>
+          </div>
+          <div className="color-picker">
+            <div className="swatch" style={{ '--swatch': accentColor }} />
+            <div className="color-controls">
+              <label className="field">
+                Pick a color
+                <input
+                  type="color"
+                  value={accentColor}
+                  onChange={(event) => setAccentColor(event.target.value)}
+                />
+              </label>
+              <div className="color-actions">
+                <div className="color-value">{accentColor.toUpperCase()}</div>
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label="Copy color"
+                  onClick={copyColor}
+                >
+                  {copyStatus === 'copied' ? '✓' : '⧉'}
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="card" aria-labelledby="table-title">
