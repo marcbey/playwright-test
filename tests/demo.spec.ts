@@ -64,6 +64,29 @@ test.describe('Playwright feature lab', () => {
     );
   });
 
+  test('task add button stays within task card on wide viewports', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/');
+
+    const card = page
+      .getByRole('heading', { name: 'Task queue' })
+      .locator('xpath=ancestor::section[contains(@class,"card")]');
+    const button = page.getByRole('button', { name: 'Add' });
+
+    await expect(button).toBeVisible();
+
+    const cardBox = await card.boundingBox();
+    const buttonBox = await button.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(buttonBox).not.toBeNull();
+
+    if (!cardBox || !buttonBox) return;
+
+    expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(
+      cardBox.x + cardBox.width
+    );
+  });
+
   test('mocked network insights', async ({ page }) => {
     await page.route('**/api/insights', async (route) => {
       await route.fulfill({

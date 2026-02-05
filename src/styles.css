@@ -184,8 +184,12 @@ h2 {
 
 .row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
+}
+
+.row > * {
+  min-width: 0;
 }
 
 .field {
@@ -207,6 +211,10 @@ select {
   border-radius: 12px;
   padding: 10px 12px;
   background: #fff;
+}
+
+.row input {
+  width: 100%;
 }
 
 button {
