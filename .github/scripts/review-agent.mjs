@@ -39,7 +39,7 @@ if (!issueNumber || !owner || !repo) {
   process.exit(1);
 }
 
-if (!commentBody.includes(TRIGGER)) {
+if (!matchesTrigger(commentBody)) {
   console.log('Trigger not found. Exiting.');
   process.exit(0);
 }
@@ -123,6 +123,13 @@ if (!testScript || /no test specified/i.test(testScript)) {
 let testOutput = '';
 try {
   testOutput += await runCapture('npm', ['ci'], workDir);
+  if (usesPlaywright(pkg)) {
+    testOutput += await runCapture(
+      'npx',
+      ['playwright', 'install', '--with-deps', 'chromium'],
+      workDir
+    );
+  }
   testOutput += await runCapture('npm', ['test'], workDir);
 } catch (error) {
   const output = truncate(error.output || testOutput || String(error), MAX_TEST_CHARS);
@@ -160,10 +167,7 @@ const response = await openai.responses.create({
   max_output_tokens: 800,
 });
 
-const reviewText =
-  response.output_text ||
-  response.output?.map((item) => item.content?.map((c) => c.text).join('')).join('') ||
-  'Review completed, but no text was returned by the model.';
+const reviewText = extractReviewText(response);
 
 await octokit.pulls.createReview({
   owner,
@@ -218,6 +222,7 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'If unsure, state assumptions instead of asking questions.',
     'Actively look for logical issues not covered by tests.',
     'Also call out user-facing copy/spelling issues if they are real problems.',
+    'If you find no issues, explicitly say "No issues found" and briefly confirm that tests passed.',
     '',
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
@@ -228,4 +233,35 @@ function buildPrompt({ title, body, diff, testOutput }) {
     'Unified Diff (truncated):',
     diff || '(no diff)',
   ].join('\n');
+}
+
+function extractReviewText(response) {
+  if (response?.output_text) return response.output_text;
+  const contentChunks = [];
+  for (const item of response?.output || []) {
+    for (const content of item.content || []) {
+      if (content?.type === 'output_text' && content.text) {
+        contentChunks.push(content.text);
+      }
+    }
+  }
+  const text = contentChunks.join('\n').trim();
+  if (text) return text;
+  return 'No issues found. Tests passed.';
+}
+
+function matchesTrigger(body) {
+  if (!body) return false;
+  const cleaned = body.replace(/```[\\s\\S]*?```/g, ' ');
+  const normalized = cleaned.replace(/\\s+/g, ' ').trim().toLowerCase();
+  return normalized.includes(TRIGGER.toLowerCase());
+}
+
+function usesPlaywright(pkg) {
+  const deps = {
+    ...pkg?.dependencies,
+    ...pkg?.devDependencies,
+    ...pkg?.optionalDependencies,
+  };
+  return Boolean(deps && (deps['@playwright/test'] || deps.playwright));
 }

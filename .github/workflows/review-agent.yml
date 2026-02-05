@@ -13,6 +13,7 @@ jobs:
   review:
     if: >-
       github.event.issue.pull_request &&
+      github.event.comment.user.login != 'github-actions[bot]' &&
       contains(github.event.comment.body, '@review-agent: please review this PR')
     runs-on: ubuntu-latest
 
