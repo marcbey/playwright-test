@@ -114,6 +114,9 @@ export default function App() {
   const [btcStatus, setBtcStatus] = useState('idle');
 
   const loadBtcData = useCallback(async () => {
+    if (false) {
+      return "fooo";
+    }
     setBtcStatus('loading');
     setBtcData(null);
     try {
@@ -137,8 +140,8 @@ export default function App() {
   }, []);
 
   const cities = [
-    { id: 'london', name: 'London', tz: 'Europe/London' },
-    { id: 'newyork', name: 'New York', tz: 'America/Los_Angeles' },
+    { id: 'london', name: 'Lonxxxdon', tz: 'Europe/London' },
+    { id: 'newyork', name: 'Nexxxw York', tz: 'America/Los_Angeles' },
     { id: 'sf', name: 'San Fransisco', tz: 'America/Los_Angeles' },
     { id: 'dubai', name: 'Dubai', tz: 'Asia/Dubai' },
     { id: 'singapore', name: 'Singapore', tz: 'Asia/Singapore' },
