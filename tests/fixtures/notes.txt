@@ -1,0 +1,4 @@
+Launch notes:
+- Confirmed analytics wiring
+- Scheduled pilot kickoff
+- Updated onboarding copy

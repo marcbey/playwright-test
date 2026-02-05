@@ -1,0 +1,17 @@
+[
+  {
+    "id": "i1",
+    "title": "Retention is up 12%",
+    "detail": "Pilots who finish onboarding within 4 minutes return twice as often."
+  },
+  {
+    "id": "i2",
+    "title": "Demo pipeline steady",
+    "detail": "Three new enterprise leads landed this week with a 78% qualification rate."
+  },
+  {
+    "id": "i3",
+    "title": "Support queue cleared",
+    "detail": "Median response time dropped to 42 minutes after the new macros roll-out."
+  }
+]
