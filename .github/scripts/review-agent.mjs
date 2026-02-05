@@ -175,14 +175,11 @@ if (!openaiKey) {
 
 const openai = new OpenAI({ apiKey: openaiKey });
 
-const heuristicFindings = findHeuristicFindings(diff);
-
 const prompt = buildPrompt({
   title: pr.data.title,
   body: pr.data.body || '',
   diff: truncate(diff, MAX_DIFF_CHARS),
   testOutput: truncate(testOutput, MAX_TEST_CHARS),
-  heuristicFindings,
   changedFileContents,
   keyFileContents,
   repoTree: truncate(repoTree, MAX_TREE_CHARS),
@@ -194,15 +191,7 @@ const response = await openai.responses.create({
   max_output_tokens: 1200,
 });
 
-let reviewText = extractReviewText(response);
-if (heuristicFindings.length > 0 && /no issues found/i.test(reviewText)) {
-  reviewText = [
-    'Heuristic findings (auto-detected):',
-    ...heuristicFindings.map((finding) => `- ${finding}`),
-    '',
-    reviewText,
-  ].join('\n');
-}
+const reviewText = extractReviewText(response);
 
 await octokit.pulls.createReview({
   owner,
@@ -253,7 +242,6 @@ function buildPrompt({
   body,
   diff,
   testOutput,
-  heuristicFindings,
   changedFileContents,
   keyFileContents,
   repoTree,
@@ -267,10 +255,6 @@ function buildPrompt({
     'Actively look for logical issues not covered by tests.',
     'Also call out user-facing copy/spelling issues if they are real problems.',
     'If you find no issues, explicitly say "No issues found" and briefly confirm that tests passed.',
-    '',
-    heuristicFindings.length
-      ? `Heuristic findings already detected: ${heuristicFindings.join(' | ')}`
-      : 'Heuristic findings already detected: (none)',
     '',
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
@@ -339,28 +323,6 @@ async function readFiles(files, cwd, maxTotalChars) {
   return parts.join('\n').trim();
 }
 
-function findHeuristicFindings(diff) {
-  const findings = [];
-  if (!diff) return findings;
-
-  const lower = diff.toLowerCase();
-  const spellingChecks = [
-    { needle: 'swich', message: 'Spelling: "Swich" should be "Switch".' },
-    { needle: 'citiess', message: 'Spelling: "citiess" should be "cities".' },
-    { needle: 'instand', message: 'Spelling: "instand" should be "instant".' },
-    { needle: 'loacal', message: 'Spelling: "Loacal" should be "Local".' },
-    { needle: 'san fransisco', message: 'Spelling: "San Fransisco" should be "San Francisco".' },
-  ];
-  for (const check of spellingChecks) {
-    if (lower.includes(check.needle)) findings.push(check.message);
-  }
-
-  if (lower.includes('newyork') && lower.includes('america/los_angeles')) {
-    findings.push('Logical: New York is assigned America/Los_Angeles timezone.');
-  }
-
-  return Array.from(new Set(findings));
-}
 
 function usesPlaywright(pkg) {
   const deps = {
