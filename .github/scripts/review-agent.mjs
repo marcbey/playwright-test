@@ -39,7 +39,7 @@ if (!issueNumber || !owner || !repo) {
   process.exit(1);
 }
 
-if (!commentBody.includes(TRIGGER)) {
+if (!matchesTrigger(commentBody)) {
   console.log('Trigger not found. Exiting.');
   process.exit(0);
 }
@@ -246,6 +246,13 @@ function extractReviewText(response) {
   const text = contentChunks.join('\n').trim();
   if (text) return text;
   return 'No issues found. Tests passed.';
+}
+
+function matchesTrigger(body) {
+  if (!body) return false;
+  const cleaned = body.replace(/```[\\s\\S]*?```/g, ' ');
+  const normalized = cleaned.replace(/\\s+/g, ' ').trim().toLowerCase();
+  return normalized.includes(TRIGGER.toLowerCase());
 }
 
 function usesPlaywright(pkg) {
