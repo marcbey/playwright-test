@@ -81,18 +81,6 @@ const changedFileContents = await readFiles(
   changedFiles.split('\n').map((f) => f.trim()).filter(Boolean),
   workDir
 );
-const repoTree = await runCapture('git', ['ls-tree', '-r', '--name-only', headSha], workDir);
-const keyFiles = [
-  'package.json',
-  'playwright.config.ts',
-  'vite.config.cjs',
-  'src/App.jsx',
-  'src/styles.css',
-  'tests/demo.spec.ts',
-  'README.md',
-  'AGENTS.md',
-];
-const keyFileContents = await readFiles(keyFiles, workDir);
 
 const pkgPath = path.join(workDir, 'package.json');
 let pkg;
@@ -159,8 +147,6 @@ const prompt = buildPrompt({
   diff,
   testOutput,
   changedFileContents,
-  keyFileContents,
-  repoTree,
 });
 
 const response = await openai.responses.create({
@@ -169,7 +155,22 @@ const response = await openai.responses.create({
   max_output_tokens: 1200,
 });
 
-const reviewText = extractReviewText(response);
+let reviewText = extractReviewText(response);
+if (/no issues found/i.test(reviewText)) {
+  const retryPrompt = buildRetryPrompt({
+    title: pr.data.title,
+    body: pr.data.body || '',
+    diff,
+    testOutput,
+    changedFileContents,
+  });
+  const retryResponse = await openai.responses.create({
+    model: process.env.OPENAI_MODEL || 'gpt-5',
+    input: retryPrompt,
+    max_output_tokens: 1200,
+  });
+  reviewText = extractReviewText(retryResponse);
+}
 
 await octokit.pulls.createReview({
   owner,
@@ -216,8 +217,6 @@ function buildPrompt({
   diff,
   testOutput,
   changedFileContents,
-  keyFileContents,
-  repoTree,
 }) {
   return [
     'You are a senior code reviewer. Provide a pragmatic, prioritized review.',
@@ -232,19 +231,32 @@ function buildPrompt({
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
     '',
-    'Repo tree (truncated):',
-    repoTree || '(none)',
-    '',
-    'Key files (truncated):',
-    keyFileContents || '(none)',
-    '',
-    'Changed files (truncated):',
+    'Changed files:',
     changedFileContents || '(none)',
     '',
-    'Test Output (truncated):',
+    'Test Output:',
     testOutput || '(no output)',
     '',
-    'Unified Diff (truncated):',
+    'Unified Diff:',
+    diff || '(no diff)',
+  ].join('\n');
+}
+
+function buildRetryPrompt({ title, body, diff, testOutput, changedFileContents }) {
+  return [
+    'Re-review the PR and list concrete issues if any exist.',
+    'Prioritize correctness and user-facing text. If you still find no issues, say so.',
+    '',
+    `PR Title: ${title}`,
+    `PR Description: ${body || '(none)'}`,
+    '',
+    'Changed files:',
+    changedFileContents || '(none)',
+    '',
+    'Test Output:',
+    testOutput || '(no output)',
+    '',
+    'Unified Diff:',
     diff || '(no diff)',
   ].join('\n');
 }
