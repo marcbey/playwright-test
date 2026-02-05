@@ -413,6 +413,31 @@ button.ghost {
   flex-wrap: nowrap;
 }
 
+.datetime-panel {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  background: #fffaf4;
+}
+
+.datetime-panel input[type='date'],
+.datetime-panel input[type='time'] {
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.datetime-preview {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff1e6;
+  color: var(--accent-deep);
+}
+
 
 .icon-button {
   width: 34px;

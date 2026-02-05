@@ -9,8 +9,6 @@ const execFileAsync = promisify(execFile);
 
 const TRIGGER = '@review-agent: please review this PR';
 const MARKER_PREFIX = '<!-- review-agent commit:';
-const MAX_DIFF_CHARS = 12000;
-const MAX_TEST_CHARS = 8000;
 
 const githubToken = process.env.GITHUB_TOKEN;
 const openaiKey = process.env.OPENAI_API_KEY;
@@ -65,22 +63,6 @@ const headSha = pr.data.head.sha;
 const baseSha = pr.data.base.sha;
 const marker = `${MARKER_PREFIX}${headSha} -->`;
 
-const existingReviews = await octokit.pulls.listReviews({
-  owner,
-  repo,
-  pull_number: issueNumber,
-  per_page: 100,
-});
-
-const alreadyReviewed = existingReviews.data.some((review) =>
-  review.body?.includes(marker)
-);
-
-if (alreadyReviewed) {
-  console.log('Review already exists for this commit. Exiting.');
-  process.exit(0);
-}
-
 const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
 const workDir = path.join(workspace, '.review-agent-work');
 await fs.rm(workDir, { recursive: true, force: true });
@@ -94,6 +76,11 @@ await run('git', ['fetch', '--depth', '50', 'origin', baseSha, headSha], workDir
 await run('git', ['checkout', headSha], workDir);
 
 const diff = await runCapture('git', ['diff', '--unified=3', baseSha, headSha], workDir);
+const changedFiles = await runCapture('git', ['diff', '--name-only', baseSha, headSha], workDir);
+const changedFileContents = await readFiles(
+  changedFiles.split('\n').map((f) => f.trim()).filter(Boolean),
+  workDir
+);
 
 const pkgPath = path.join(workDir, 'package.json');
 let pkg;
@@ -157,17 +144,33 @@ const openai = new OpenAI({ apiKey: openaiKey });
 const prompt = buildPrompt({
   title: pr.data.title,
   body: pr.data.body || '',
-  diff: truncate(diff, MAX_DIFF_CHARS),
-  testOutput: truncate(testOutput, MAX_TEST_CHARS),
+  diff,
+  testOutput,
+  changedFileContents,
 });
 
 const response = await openai.responses.create({
   model: process.env.OPENAI_MODEL || 'gpt-5',
   input: prompt,
-  max_output_tokens: 800,
+  max_output_tokens: 1200,
 });
 
-const reviewText = extractReviewText(response);
+let reviewText = extractReviewText(response);
+if (/no issues found/i.test(reviewText)) {
+  const retryPrompt = buildRetryPrompt({
+    title: pr.data.title,
+    body: pr.data.body || '',
+    diff,
+    testOutput,
+    changedFileContents,
+  });
+  const retryResponse = await openai.responses.create({
+    model: process.env.OPENAI_MODEL || 'gpt-5',
+    input: retryPrompt,
+    max_output_tokens: 1200,
+  });
+  reviewText = extractReviewText(retryResponse);
+}
 
 await octokit.pulls.createReview({
   owner,
@@ -198,11 +201,6 @@ async function runCapture(cmd, args, cwd) {
   }
 }
 
-function truncate(text, maxChars) {
-  if (!text) return '';
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, maxChars)}\n...truncated...`;
-}
 
 async function postComment(owner, repo, issueNumber, body) {
   await octokit.issues.createComment({
@@ -213,7 +211,13 @@ async function postComment(owner, repo, issueNumber, body) {
   });
 }
 
-function buildPrompt({ title, body, diff, testOutput }) {
+function buildPrompt({
+  title,
+  body,
+  diff,
+  testOutput,
+  changedFileContents,
+}) {
   return [
     'You are a senior code reviewer. Provide a pragmatic, prioritized review.',
     'Focus on correctness, security, performance, and maintainability.',
@@ -227,10 +231,32 @@ function buildPrompt({ title, body, diff, testOutput }) {
     `PR Title: ${title}`,
     `PR Description: ${body || '(none)'}`,
     '',
-    'Test Output (truncated):',
+    'Changed files:',
+    changedFileContents || '(none)',
+    '',
+    'Test Output:',
     testOutput || '(no output)',
     '',
-    'Unified Diff (truncated):',
+    'Unified Diff:',
+    diff || '(no diff)',
+  ].join('\n');
+}
+
+function buildRetryPrompt({ title, body, diff, testOutput, changedFileContents }) {
+  return [
+    'Re-review the PR and list concrete issues if any exist.',
+    'Prioritize correctness and user-facing text. If you still find no issues, say so.',
+    '',
+    `PR Title: ${title}`,
+    `PR Description: ${body || '(none)'}`,
+    '',
+    'Changed files:',
+    changedFileContents || '(none)',
+    '',
+    'Test Output:',
+    testOutput || '(no output)',
+    '',
+    'Unified Diff:',
     diff || '(no diff)',
   ].join('\n');
 }
@@ -256,6 +282,24 @@ function matchesTrigger(body) {
   const normalized = cleaned.replace(/\\s+/g, ' ').trim().toLowerCase();
   return normalized.includes(TRIGGER.toLowerCase());
 }
+
+async function readFiles(files, cwd) {
+  const parts = [];
+  for (const file of files) {
+    if (!file) continue;
+    const fullPath = path.join(cwd, file);
+    try {
+      const stat = await fs.stat(fullPath);
+      if (!stat.isFile()) continue;
+      const content = await fs.readFile(fullPath, 'utf8');
+      parts.push(`\n--- ${file} ---\n${content}`);
+    } catch {
+      continue;
+    }
+  }
+  return parts.join('\n').trim();
+}
+
 
 function usesPlaywright(pkg) {
   const deps = {
