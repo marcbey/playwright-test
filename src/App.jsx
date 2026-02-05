@@ -105,6 +105,7 @@ export default function App() {
       ...items,
     ]);
     setTaskInput('');
+    setFilter('all');
   };
 
   const toggleTask = (id) => {

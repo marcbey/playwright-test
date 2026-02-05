@@ -50,6 +50,20 @@ test.describe('Playwright feature lab', () => {
     );
   });
 
+  test('adding a task shows it even when filtered', async ({ page }) => {
+    await page.getByRole('tab', { name: 'done' }).click();
+    await page.getByPlaceholder('Add a task').fill('Send launch follow-up');
+    await page.getByRole('button', { name: 'Add' }).click();
+
+    await expect(page.getByRole('tab', { name: 'all' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(page.getByRole('list', { name: 'Task list' })).toContainText(
+      'Send launch follow-up'
+    );
+  });
+
   test('mocked network insights', async ({ page }) => {
     await page.route('**/api/insights', async (route) => {
       await route.fulfill({
